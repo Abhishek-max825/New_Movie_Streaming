@@ -35,7 +35,7 @@ export function createProviderContext(): ProviderContext {
             // You can implement dynamic base URL fetching here if needed
             // Current working domain as of Nov 2025
             const baseUrls: Record<string, string> = {
-                hdhub: "https://new1.hdhub4u.fo",
+                hdhub: "https://new3.hdhub4u.fo",
                 // Add other mirrors as fallbacks
             };
             return baseUrls[provider] || baseUrls.hdhub;

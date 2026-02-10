@@ -4,16 +4,16 @@ url = "https://cdn.gigabytes.live/Kantara-Chapter.1.2025.720p.HEVC.WEB-DL.Hindi.
 
 configs = [
     {"name": "No Headers", "headers": {}},
-    {"name": "Referer: hdhub4u.guide/", "headers": {"Referer": "https://hdhub4u.guide/"}},
-    {"name": "Referer: hdhub4u.guide", "headers": {"Referer": "https://hdhub4u.guide"}},
+    {"name": "Referer: new3.hdhub4u.fo/", "headers": {"Referer": "https://new3.hdhub4u.fo/"}},
+    {"name": "Referer: new3.hdhub4u.fo", "headers": {"Referer": "https://new3.hdhub4u.fo"}},
     {"name": "UA Only", "headers": {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"}},
     {"name": "UA + Referer", "headers": {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-        "Referer": "https://hdhub4u.guide/"
+        "Referer": "https://new3.hdhub4u.fo/"
     }},
     {"name": "UA + Referer (no slash)", "headers": {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-        "Referer": "https://hdhub4u.guide"
+        "Referer": "https://new3.hdhub4u.fo"
     }},
 ]
 

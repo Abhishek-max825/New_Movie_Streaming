@@ -11,7 +11,7 @@ async function validateStreamUrl(url: string): Promise<boolean> {
         const response = await axios.head(url, {
             headers: {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                "Referer": "https://new1.hdhub4u.fo/",
+                "Referer": "https://new3.hdhub4u.fo/",
             },
             timeout: 10000,
             maxRedirects: 5,
@@ -35,7 +35,7 @@ async function validateStreamUrl(url: string): Promise<boolean> {
             const response = await axios.get(url, {
                 headers: {
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                    "Referer": "https://hdhub4u.rehab/",
+                    "Referer": "https://new3.hdhub4u.fo/",
                 },
                 timeout: 10000,
                 maxContentLength: 5000, // Only fetch first 5KB

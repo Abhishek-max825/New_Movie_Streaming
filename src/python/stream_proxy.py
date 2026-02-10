@@ -325,8 +325,8 @@ HTML_TEMPLATE = """
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     "Accept": "*/*",
-    "Referer": "https://hdhub4u.rehab/",
-    "Origin": "https://hdhub4u.rehab",
+    "Referer": "https://new3.hdhub4u.fo/",
+    "Origin": "https://new3.hdhub4u.fo",
     "Connection": "keep-alive",
     "Sec-Fetch-Dest": "video",
     "Sec-Fetch-Mode": "no-cors",
@@ -874,13 +874,9 @@ async def run_proxy(args: argparse.Namespace) -> None:
                 else:
                     raise
 
+        # Emit bound event IMMEDIATELY after binding, before playlist wait
+        # This allows the Node.js API to proceed without timing out
         display_host = "127.0.0.1" if args.host in {"0.0.0.0", "::"} else args.host
-        print("================ Universal Streaming Proxy ================")
-        print(f"Remote source : {args.url}")
-        print(f"Browser player : http://{display_host}:{args.port}/")
-        print(f"Raw playlist   : http://{display_host}:{args.port}/hls/{playlist_name}")
-        
-        # KEY CHANGE: Machine-readable output for the parent process
         print(json.dumps({
             "event": "bound",
             "port": args.port,
@@ -888,6 +884,11 @@ async def run_proxy(args: argparse.Namespace) -> None:
             "hls": f"http://{display_host}:{args.port}/hls/{playlist_name}",
             "duration": detected_duration
         }), flush=True)
+        
+        print("================ Universal Streaming Proxy ================")
+        print(f"Remote source : {args.url}")
+        print(f"Browser player : http://{display_host}:{args.port}/")
+        print(f"Raw playlist   : http://{display_host}:{args.port}/hls/{playlist_name}")
 
         print("Press Ctrl+C to stop.")
 
