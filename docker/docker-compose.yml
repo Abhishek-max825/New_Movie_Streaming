@@ -1,11 +1,19 @@
 version: '3.8'
+
 services:
   app:
-    build: ..
+    container_name: movie-streaming-app
+    build:
+      context: ..
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
-      - "8000:8000"
-    volumes:
-      - ../src:/app/src
+      - "8000-8010:8000-8010"
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
+      # Add other environment variables here if needed
+      # - PORT=3000
+    restart: unless-stopped
+    # Optional: Volume mount for development (commented out for prod build)
+    # volumes:
+    #   - ../src:/app/src

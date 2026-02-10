@@ -268,12 +268,27 @@ movie-streaming/
 
 ## 🐳 Docker Support
 
+### 1️⃣ Build the Image
 ```bash
-# Build image
 docker build -t movie-streaming .
+```
 
-# Run container
+### 2️⃣ Run the Application
+Start the full stack application (Frontend + Backend + Proxy support):
+```bash
 docker run -p 3000:3000 -p 8000:8000 movie-streaming
+```
+Access the app at `http://localhost:3000`
+
+### 3️⃣ Advanced / Debugging
+**Run Standalone Proxy:**
+```bash
+docker run -p 8000:8000 movie-streaming python src/python/stream_proxy.py --url "YOUR_HLS_URL" --host 0.0.0.0
+```
+
+**Interactive Shell:**
+```bash
+docker run -it --entrypoint /bin/sh movie-streaming
 ```
 
 ---
