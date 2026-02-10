@@ -551,6 +551,7 @@ def build_ffmpeg_command(
         "-f", "hls",
         "-hls_time", str(segment_duration),
         "-hls_list_size", "0", 
+        "-var_stream_map", var_stream_map,
         
         
         # Output the playlist (absolute path)
