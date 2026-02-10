@@ -540,7 +540,7 @@ def build_ffmpeg_command(
         cmd.extend(encoder_opts.split())
         
     # Use relative path for output, relying on CWD
-    playlist_path = "stream.m3u8"
+    playlist_path = "stream_%v.m3u8"
     
     cmd.extend([
         "-b:v", video_bitrate,
@@ -552,6 +552,7 @@ def build_ffmpeg_command(
         "-hls_time", str(segment_duration),
         "-hls_list_size", "0", 
         "-var_stream_map", var_stream_map,
+        "-master_pl_name", "stream.m3u8",
         
         
         # Output the playlist (absolute path)
