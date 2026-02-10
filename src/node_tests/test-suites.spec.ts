@@ -81,18 +81,21 @@ describe("Movies Streaming Tests", () => {
 
     describe("getSearchPosts", () => {
         it("should parse search results correctly", async () => {
-            // Mock fetch for getSearchPosts (it uses fetch, not axios in posts.ts)
+            // Mock fetch for getSearchPosts (it uses the Pingora API which returns JSON)
             global.fetch = jest.fn().mockResolvedValue({
-                text: jest.fn().mockResolvedValue(`
-          <div class="recent-movies">
-            <article>
-              <figure>
-                <img src="https://example.com/thumb.jpg" alt="Test Movie Download" />
-              </figure>
-              <a href="https://example.com/post">Link</a>
-            </article>
-          </div>
-        `),
+                ok: true,
+                status: 200,
+                json: jest.fn().mockResolvedValue({
+                    hits: [
+                        {
+                            document: {
+                                post_title: "Test Movie Download",
+                                permalink: "https://example.com/post",
+                                post_thumbnail: "https://example.com/thumb.jpg"
+                            }
+                        }
+                    ]
+                }),
             } as any);
 
             const controller = new AbortController();
@@ -112,7 +115,9 @@ describe("Movies Streaming Tests", () => {
 
         it("should handle empty results", async () => {
             global.fetch = jest.fn().mockResolvedValue({
-                text: jest.fn().mockResolvedValue('<div class="recent-movies"></div>'),
+                ok: true,
+                status: 200,
+                json: jest.fn().mockResolvedValue({ hits: [] }),
             } as any);
 
             const controller = new AbortController();
