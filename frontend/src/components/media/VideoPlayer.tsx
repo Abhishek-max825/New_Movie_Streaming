@@ -35,16 +35,32 @@ function injectAudioSelector(hls: Hls, tracks: any[]) {
 
         if (!menu || !container) return;
 
-        // The first child div of the container is ALWAYS the "Home" pane in Plyr
-        // (The one that lists Settings, Speed, Quality, etc.)
-        const panes = container.querySelectorAll(':scope > div');
-        if (panes.length === 0) return;
+        // Locate the Home pane reliably by finding a known settings button (Speed, Quality, etc.)
+        // formatting of plyr menu: container > div (home) > buttons
+        // OR container > div (submenus)
 
-        const homePane = panes[0] as HTMLElement;
+        // Strategy: element with role="menu" or just find the div containing the "Speed" button
+        const allButtons = Array.from(container.querySelectorAll('button'));
+        const referenceBtn = allButtons.find(btn => {
+            const span = btn.querySelector('span');
+            // Check for standard Plyr setting labels
+            // We use 'Speed' as anchor because it's usually present if settings are enabled
+            return span && ['Speed', 'Quality', 'Captions'].includes(span.textContent?.trim() || '');
+        });
 
-        // Double check it's the right pane by ensuring it's not hidden if the menu is open
-        // OR just trusting structure. Let's trust structure but verifying it has buttons.
-        if (homePane.tagName !== 'DIV') return;
+        let homePane: HTMLElement | null = null;
+
+        if (referenceBtn && referenceBtn.parentElement) {
+            homePane = referenceBtn.parentElement;
+        } else {
+            // Fallback: If no settings are visible (e.g. only 1 quality, no captions), Plyr might still have an empty home pane?
+            // Unlikely. If Plyr didn't render buttons, it might not have rendered the pane.
+            // Try the first pane approach as fallback
+            const panes = container.querySelectorAll(':scope > div');
+            if (panes.length > 0) homePane = panes[0] as HTMLElement;
+        }
+
+        if (!homePane) return;
 
         console.log("Found Home Pane. Injecting Audio Menu...");
         clearInterval(checkInterval);
@@ -61,8 +77,16 @@ function injectAudioSelector(hls: Hls, tracks: any[]) {
             <span class="plyr__menu__value">Default</span>
         `;
 
-        // Append to the list of options in the home pane
-        homePane.appendChild(audioBtn);
+        // Insert in a logical position (e.g., after Speed or at the end)
+        if (referenceBtn && referenceBtn.nextSibling) {
+            try {
+                homePane.insertBefore(audioBtn, referenceBtn.nextSibling);
+            } catch (e) {
+                homePane.appendChild(audioBtn);
+            }
+        } else {
+            homePane.appendChild(audioBtn);
+        }
 
         // --- 2. Create Sub-menu Pane ---
         const audioPane = document.createElement('div');
