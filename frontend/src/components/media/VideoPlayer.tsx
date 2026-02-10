@@ -20,52 +20,59 @@ const langMap: Record<string, string> = {
 };
 
 // Inject audio selector into Plyr settings menu
-function injectAudioSelector(hls: Hls, tracks: any[]) {
-    if (!tracks || tracks.length === 0) return;
+// Inject audio selector into Plyr settings menu
+function injectAudioSelector(hls: Hls, tracks: any[], rootElement: HTMLElement | null): () => void {
+    if (!tracks || tracks.length === 0 || !rootElement) {
+        return () => { };
+    }
 
-    // cleanup previous instances just in case
-    const existingBtn = document.getElementById('plyr-audio-control');
-    if (existingBtn) existingBtn.remove();
-    const existingPane = document.getElementById('plyr-audio-menu');
-    if (existingPane) existingPane.remove();
 
-    const checkInterval = setInterval(() => {
-        const menu = document.querySelector('.plyr__menu');
+
+    const inject = () => {
+        if (!rootElement.isConnected) return;
+
+        const menu = rootElement.querySelector('.plyr__menu');
         const container = menu?.querySelector('.plyr__menu__container');
 
         if (!menu || !container) return;
 
-        // Locate the Home pane reliably by finding a known settings button (Speed, Quality, etc.)
-        // formatting of plyr menu: container > div (home) > buttons
-        // OR container > div (submenus)
-
-        // Strategy: element with role="menu" or just find the div containing the "Speed" button
-        const allButtons = Array.from(container.querySelectorAll('button'));
-        const referenceBtn = allButtons.find(btn => {
-            const span = btn.querySelector('span');
-            // Check for standard Plyr setting labels
-            // We use 'Speed' as anchor because it's usually present if settings are enabled
-            return span && ['Speed', 'Quality', 'Captions'].includes(span.textContent?.trim() || '');
-        });
-
-        let homePane: HTMLElement | null = null;
-
-        if (referenceBtn && referenceBtn.parentElement) {
-            homePane = referenceBtn.parentElement;
-        } else {
-            // Fallback: If no settings are visible (e.g. only 1 quality, no captions), Plyr might still have an empty home pane?
-            // Unlikely. If Plyr didn't render buttons, it might not have rendered the pane.
-            // Try the first pane approach as fallback
-            const panes = container.querySelectorAll(':scope > div');
-            if (panes.length > 0) homePane = panes[0] as HTMLElement;
+        // Check if already injected and valid
+        if (container.querySelector('#plyr-audio-menu') && container.querySelector('#plyr-audio-control')) {
+            return;
         }
 
-        if (!homePane) return;
+        // Locate the Home pane reliably
+        // Plyr creates multiple divs inside container.
+        // - First one (visible initially) is the main menu.
+        // - Others are submenus (Quality, Speed, etc.).
+        // We want to inject into the FIRST div, which contains the main settings.
 
-        console.log("Found Home Pane. Injecting Audio Menu...");
-        clearInterval(checkInterval);
+        const panes = Array.from(container.children).filter(c => c.tagName === 'DIV');
+        if (panes.length === 0) return;
+
+        // Usually the first pane is the home pane.
+        // But to be safe, let's find the pane that contains "Speed" OR "Quality" OR "Captions".
+        // If not found, fallback to the first pane.
+        let homePane = panes.find(pane => {
+            const buttons = Array.from(pane.querySelectorAll('button'));
+            return buttons.some(btn => {
+                const text = btn.textContent?.trim() || '';
+                return text.includes('Speed') || text.includes('Quality') || text.includes('Captions');
+            });
+        }) as HTMLElement | undefined;
+
+        if (!homePane) {
+            console.log("AudioInjection: Could not find specific Home pane by text, falling back to first pane.");
+            homePane = panes[0] as HTMLElement;
+        }
+
+        console.log("AudioInjection: Injecting Audio Menu...");
 
         // --- 1. Create Main Menu Button ---
+        // Remove existing if any (cleanup for re-injection)
+        const oldBtn = homePane.querySelector('#plyr-audio-control');
+        if (oldBtn) oldBtn.remove();
+
         const audioBtn = document.createElement('button');
         audioBtn.type = 'button';
         audioBtn.id = 'plyr-audio-control';
@@ -77,33 +84,47 @@ function injectAudioSelector(hls: Hls, tracks: any[]) {
             <span class="plyr__menu__value">Default</span>
         `;
 
-        // Insert in a logical position (e.g., after Speed or at the end)
-        if (referenceBtn && referenceBtn.nextSibling) {
-            try {
-                homePane.insertBefore(audioBtn, referenceBtn.nextSibling);
-            } catch (e) {
+        // Insert after the last "forward" control (Speed, Quality, etc.) to keep it grouped
+        const forwardControls = Array.from(homePane.querySelectorAll('.plyr__control--forward'));
+        if (forwardControls.length > 0) {
+            const lastForward = forwardControls[forwardControls.length - 1];
+            if (lastForward.nextSibling) {
+                homePane.insertBefore(audioBtn, lastForward.nextSibling);
+            } else {
                 homePane.appendChild(audioBtn);
             }
         } else {
+            // No other forward controls? Just append.
             homePane.appendChild(audioBtn);
         }
 
         // --- 2. Create Sub-menu Pane ---
+        // Remove existing if any
+        const oldMenu = container.querySelector('#plyr-audio-menu');
+        if (oldMenu) oldMenu.remove();
+
         const audioPane = document.createElement('div');
         audioPane.id = 'plyr-audio-menu';
-        audioPane.className = 'plyr__menu__container';
+        // DO NOT add 'plyr__menu__container' class here, it causes nested padding/background issues.
+        // It should just be a pane container.
         audioPane.hidden = true;
+        audioPane.style.width = '100%';
+        audioPane.style.minWidth = '200px'; // Make sure the menu is wide enough 
+        audioPane.style.display = 'flex';
+        audioPane.style.flexDirection = 'column';
 
+        // Add back button with explicit SVG structure to ensure icon renders
         audioPane.innerHTML = `
-            <div class="plyr__control--back">
+            <div style="margin-bottom: 8px;">
                 <button type="button" class="plyr__control plyr__control--back">
                     <span class="plyr__sr-only">Go back to previous menu</span>
                     <span class="plyr__menu__label">Audio</span>
                 </button>
             </div>
-            <div class="plyr__menu__content"></div>
+            <div class="plyr__menu__content" style="display: flex; flex-direction: column; width: 100%;"></div>
         `;
 
+        // Append to the main container (where other panes live)
         container.appendChild(audioPane);
 
         const contentDiv = audioPane.querySelector('.plyr__menu__content');
@@ -113,25 +134,29 @@ function injectAudioSelector(hls: Hls, tracks: any[]) {
         tracks.forEach((track, index) => {
             const button = document.createElement('button');
             button.type = 'button';
+            // Use same styling as other menu items
             button.className = 'plyr__control';
             button.role = 'menuitemradio';
             button.setAttribute('aria-checked', index === hls.audioTrack ? 'true' : 'false');
 
+            // Check if track object has meaningful name
             const langName = langMap[track.lang] || track.lang;
             let label = langName;
-            if (!label) {
+
+            // Fallback logic for label
+            if (!label || label === 'undefined' || label === 'und') {
                 label = track.name && !track.name.startsWith('audio_') ? track.name : `Audio ${index + 1}`;
             }
 
-            // Create badge for selected state
+            // Create badge/layout matching Plyr's style
             button.innerHTML = `
                 <span>${label}</span>
-                <span class="plyr__menu__value"></span>
-            `;
+            `; // Removed empty value span as it's not needed for radio items usually
 
             button.addEventListener('click', () => {
+                console.log(`AudioInjection: Switching to track ${index} (${label})`);
                 hls.audioTrack = index;
-                updateAudioUI(index, tracks, contentDiv as HTMLElement, audioBtn);
+                updates(index);
                 showHome();
             });
 
@@ -139,48 +164,66 @@ function injectAudioSelector(hls: Hls, tracks: any[]) {
         });
 
         // --- 4. Navigation Handlers ---
-        // Manually handle hiding/showing panes
         const showAudio = () => {
-            // Hide all panes
             Array.from(container.children).forEach(child => {
                 if (child.tagName === 'DIV') (child as HTMLElement).hidden = true;
             });
-            // Show Audio
             audioPane.hidden = false;
         };
 
         const showHome = () => {
-            // Hide Audio
             audioPane.hidden = true;
-            // Show Home (first div)
-            homePane.hidden = false;
+            if (homePane) homePane.hidden = false;
         };
 
         audioBtn.addEventListener('click', (e) => {
-            // We only need to stop immediate propagation to prevent Plyr from hijacking, 
-            // but we must be careful not to break the menu "open" state.
-            // Actually, for forward buttons, standard Plyr behavior is to show next pane.
-            // Since we aren't wired into Plyr's router, we do it manually.
+            e.stopPropagation();
             showAudio();
         });
 
         const backBtn = audioPane.querySelector('.plyr__control--back');
         if (backBtn) {
-            backBtn.addEventListener('click', () => {
-                showHome();
-            });
+            backBtn.addEventListener('click', () => showHome());
         }
 
-        // --- 5. Initial UI ---
-        updateAudioUI(hls.audioTrack, tracks, contentDiv as HTMLElement, audioBtn);
+        // --- 5. UI Helper ---
+        const updates = (trackId: number) => {
+            updateAudioUI(trackId, tracks, contentDiv as HTMLElement, audioBtn);
+        };
 
-        hls.on(Hls.Events.AUDIO_TRACK_SWITCHED, (_event, data) => {
-            updateAudioUI(data.id, tracks, contentDiv as HTMLElement, audioBtn);
-        });
+        updates(hls.audioTrack);
 
-    }, 200);
+        // Track switch listener (scoped to this injection)
+        const onTrackSwitch = (_event: any, data: any) => updates(data.id);
+        hls.on(Hls.Events.AUDIO_TRACK_SWITCHED, onTrackSwitch);
 
-    setTimeout(() => clearInterval(checkInterval), 10000);
+        // Cleanup HLS listener when elements are removed
+        // (Handled by the main cleanup function below)
+    };
+
+    // Initial check
+    inject();
+
+    // Observe changes in the player wrapper
+    const observer = new MutationObserver(() => {
+        inject();
+    });
+
+    observer.observe(rootElement, {
+        childList: true,
+        subtree: true
+    });
+
+    return () => {
+        observer.disconnect();
+        console.log("AudioInjection: Cleanup (Observer disconnected).");
+        if (rootElement) {
+            const audioMenu = rootElement.querySelector('#plyr-audio-menu');
+            if (audioMenu) audioMenu.remove();
+            const audioBtn = rootElement.querySelector('#plyr-audio-control');
+            if (audioBtn) audioBtn.remove();
+        }
+    };
 }
 
 // Update UI when audio track changes
@@ -197,6 +240,8 @@ function updateAudioUI(trackId: number, tracks: any[], contentDiv: HTMLElement, 
     });
 
     const track = tracks[trackId];
+    if (!track) return;
+
     const langName = langMap[track.lang] || track.lang;
     let trackName = langName;
     if (!trackName) {
@@ -209,6 +254,7 @@ function updateAudioUI(trackId: number, tracks: any[], contentDiv: HTMLElement, 
 
 export const VideoPlayer = ({ src, poster, autoPlay = false, duration, onEnded }: Props) => {
     const ref = useRef<APITypes>(null);
+    const wrapperRef = useRef<HTMLDivElement>(null);
     const hlsRef = useRef<Hls | null>(null);
 
     // Mobile rotation prompt state
@@ -246,9 +292,11 @@ export const VideoPlayer = ({ src, poster, autoPlay = false, duration, onEnded }
     useEffect(() => {
         let hls: Hls | null = null;
         let timer: NodeJS.Timeout;
+        let cleanupAudioInjection: (() => void) | null = null;
 
         const loadVideo = () => {
-            const video = document.querySelector('.plyr video') as HTMLVideoElement;
+            // Scope video selection to this component instance
+            const video = wrapperRef.current?.querySelector('video') as HTMLVideoElement;
             if (!video) return;
 
             if (Hls.isSupported()) {
@@ -271,8 +319,12 @@ export const VideoPlayer = ({ src, poster, autoPlay = false, duration, onEnded }
                 hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
                     if (autoPlay) video.play().catch(() => { });
                     const tracks = data.audioTracks || hls?.audioTracks;
+                    console.log("Manifest Parsed. Tracks found:", tracks);
+
+                    if (cleanupAudioInjection) cleanupAudioInjection(); // Clear previous if any
+
                     if (tracks && tracks.length >= 1 && hls) {
-                        injectAudioSelector(hls, tracks);
+                        cleanupAudioInjection = injectAudioSelector(hls, tracks, wrapperRef.current);
                     }
                 });
 
@@ -309,11 +361,9 @@ export const VideoPlayer = ({ src, poster, autoPlay = false, duration, onEnded }
                 hlsRef.current = null;
                 if ((window as any).hls) delete (window as any).hls;
             }
-            // Cleanup injected audio controls
-            const audioMenu = document.getElementById('plyr-audio-menu');
-            if (audioMenu) audioMenu.remove();
-            const audioBtn = document.getElementById('plyr-audio-control');
-            if (audioBtn) audioBtn.remove();
+            if (cleanupAudioInjection) {
+                cleanupAudioInjection();
+            }
         };
     }, [src, autoPlay]);
 
@@ -321,7 +371,7 @@ export const VideoPlayer = ({ src, poster, autoPlay = false, duration, onEnded }
     const playerKey = `${src}-${duration || 0}`;
 
     return (
-        <div className="w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl relative">
+        <div ref={wrapperRef} className="w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl relative">
             <Plyr
                 key={playerKey}
                 ref={ref}
@@ -439,12 +489,16 @@ export const VideoPlayer = ({ src, poster, autoPlay = false, duration, onEnded }
                 transform: translate(-50%, -50%) !important;
                 }
                 
-                /* Audio Menu Customization */
                 .plyr__menu__container {
                     background: rgba(20,20,20,0.95) !important;
+                    place-content: flex-start !important;
+                    flex-direction: column !important;
                     backdrop-filter: blur(20px) !important;
                     border-radius: 8px !important;
                     padding: 8px !important;
+                    height: auto !important; /* Force auto height to show injected content */
+                    max-height: 80vh !important; /* Cap height */
+                    overflow-y: auto !important; /* Allow scrolling if too many items */
                 }
                 
                 /* Standardize all menu items (Speed, Audio, Quality, etc.) */
